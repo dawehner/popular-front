@@ -2,6 +2,8 @@ module Main exposing (..)
 
 import BakedMessages exposing (..)
 import Char exposing (fromCode, toCode)
+import Color exposing (Color, toRgb)
+import Colorbrewer.Qualitative exposing (..)
 import Date
 import Html exposing (..)
 import Html.Attributes as Attr exposing (..)
@@ -18,9 +20,6 @@ import Task
 import Time exposing (Time, now)
 import VirtualDom
 import WebSocket
-import Color exposing (Color, toRgb)
-
-import Colorbrewer.Qualitative exposing  (..)
 
 
 main =
@@ -44,6 +43,7 @@ type RawOrRendered
 type alias Model =
     { input : String
     , msgs : List ( String, Jmsg )
+    , code : String
     , index : Maybe Int
     , connectionString : String
     , raw : RawOrRendered
@@ -64,6 +64,7 @@ init : ( Model, Cmd Msg )
 init =
     ( { input = ""
       , msgs = []
+      , code = "2+2"
       , index = Nothing
       , connectionString = ""
       , raw = Rendered
@@ -89,6 +90,7 @@ type Msg
     = Input String
     | Send
     | ConnectAPI Time.Time
+    | ChangeCode String
     | Ping String
     | NewMessage String
     | NewTimeMessage Time String
@@ -174,28 +176,29 @@ update msg model =
                 --  if raw_msg == basic_execute_request_msg then
                 --    [basic_execute_request_msg_] else []
             in
+            RemoteData.withDefault (model ! [])
+                (RemoteData.map
+                    (\s ->
+                        { model
+                            | msgs = model.msgs ++ new_msgs
+                            , seed = seed
+                        }
+                            ! [ WebSocket.send (ws_url model) outgoing ]
+                    )
+                    model.sessions
+                )
 
+        ChangeCode string ->
+            { model | code = string } ! []
 
-
-            RemoteData.withDefault  (model ! [])
-            (RemoteData.map (\s ->
-                 { model
-                     | msgs = model.msgs ++ new_msgs
-                     , seed = seed
-                 }
-                     ! [ WebSocket.send (ws_url model) outgoing ]) model.sessions)
-
-
-
-            --  case model.session of
-            --   Success _ =>
-            --      { model
-            --          | msgs = model.msgs ++ new_msgs
-            --          , seed = seed
-            --      }
-            --          ! [ WebSocket.send (ws_url model) outgoing ]
-            --   _ => model ! []
-
+        --  case model.session of
+        --   Success _ =>
+        --      { model
+        --          | msgs = model.msgs ++ new_msgs
+        --          , seed = seed
+        --      }
+        --          ! [ WebSocket.send (ws_url model) outgoing ]
+        --   _ => model ! []
         Send ->
             { model
                 | input = ""
@@ -540,7 +543,8 @@ view model =
         , div []
             [ toggleRenderedStatus model
             , kernelInfoButton
-            , quickHTMLButton4
+            , codeTextfield model.code
+            , executeCodeButton model.code
             , quickHTMLButton
             , quickHTMLButton3
             , quickHTMLButton2
@@ -618,7 +622,7 @@ viewMessage model i msg =
                         [ "background-color" => msg2colorMuted model msg ]
 
                 Nothing ->
-                    [ "background-color" => msg2color model msg]
+                    [ "background-color" => msg2color model msg ]
 
         subj =
             text <| getSubject msg
@@ -647,44 +651,62 @@ viewMessage model i msg =
     tr [ style s, onClick (Focus i) ] with_date
 
 
-{- This is kind of fugly, but works -}
-color2text : Color -> String
-color2text color
-  = let c = toRgb color
-  in
-    "rgb("
-    ++ toString c.red ++ ","
-    ++ toString c.green ++ ","
-    ++ toString c.blue ++ ")"
 
-{- TODO: turn this into a case switch once we properly differentiate the different kinds of Jmsgs
--}
+{- This is kind of fugly, but works -}
+
+
+color2text : Color -> String
+color2text color =
+    let
+        c =
+            toRgb color
+    in
+    "rgb("
+        ++ toString c.red
+        ++ ","
+        ++ toString c.green
+        ++ ","
+        ++ toString c.blue
+        ++ ")"
+
+
+
+{- TODO: turn this into a case switch once we properly differentiate the different kinds of Jmsgs -}
+
+
 msg2color : model -> Jmsg -> String
 msg2color m j =
-  let color =
-    if j.header.msg_type == "execute_request" then
-      paired12_0
-    else if j.header.msg_type == "execute_reply" then
-      paired12_1
-    else if j.header.msg_type == "execute_input" then
-      paired12_2
-    else if j.header.msg_type == "execute_result" then
-      paired12_3
-    else if j.header.msg_type == "error" then
-      paired12_4
-    else if j.header.msg_type == "stream" then
-      paired12_11
-    else
-      paired12_10
-  in
+    let
+        color =
+            if j.header.msg_type == "execute_request" then
+                paired12_0
+            else if j.header.msg_type == "execute_reply" then
+                paired12_1
+            else if j.header.msg_type == "execute_input" then
+                paired12_2
+            else if j.header.msg_type == "execute_result" then
+                paired12_3
+            else if j.header.msg_type == "error" then
+                paired12_4
+            else if j.header.msg_type == "stream" then
+                paired12_11
+            else
+                paired12_10
+    in
     color2text color
 
+
 msg2colorMuted : model -> Jmsg -> String
-msg2colorMuted m j = let
-    c = msg2color m j
-    with_a = replace "rgb" c "rgba"
-  in
+msg2colorMuted m j =
+    let
+        c =
+            msg2color m j
+
+        with_a =
+            replace "rgb" c "rgba"
+    in
     replace ")" with_a ", 0.5)"
+
 
 viewRawMessage : Int -> String -> Html Msg
 viewRawMessage i msg =
@@ -770,8 +792,12 @@ quickHTMLButton3 =
     button [ onClick <| Ping stdout_execute_request_msg ] [ text "get some stdout" ]
 
 
-quickHTMLButton4 =
-    button [ onClick <| Ping basic_execute_request_msg ] [ text "basic execute (2+2)" ]
+codeTextfield code =
+    input [ type_ "textfield", onInput ChangeCode, value code ] []
+
+
+executeCodeButton code =
+    button [ onClick <| Ping <| basic_execute_request_msg code ] [ text "execute" ]
 
 
 quickHTMLButton6 =

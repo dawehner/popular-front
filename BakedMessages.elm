@@ -1,17 +1,19 @@
-module BakedMessages exposing
-  ( kernel_info_request_msg
-  , error_execute_request_msg
-  , basic_execute_request_msg
-  , fancy_execute_request_msg
-  , stdout_execute_request_msg
-  , resource_info_request_msg
-  , sleep_request_msg
-  )
-
+module BakedMessages
+    exposing
+        ( basic_execute_request_msg
+        , error_execute_request_msg
+        , fancy_execute_request_msg
+        , kernel_info_request_msg
+        , resource_info_request_msg
+        , sleep_request_msg
+        , stdout_execute_request_msg
+        )
 
 import JMessages
 
-kernel_info_request_msg = """
+
+kernel_info_request_msg =
+    """
 {
   "header": {
     "msg_type": "kernel_info_request",
@@ -26,9 +28,13 @@ kernel_info_request_msg = """
 }
 """
 
-empty_execute_request_msg = """{"header":{"msg_type":  "execute_request", "msg_id": ""}, "parent_header": {}, "metadata":{}}"""
 
-error_execute_request_msg = """
+empty_execute_request_msg =
+    """{"header":{"msg_type":  "execute_request", "msg_id": ""}, "parent_header": {}, "metadata":{}}"""
+
+
+error_execute_request_msg =
+    """
 {
   "header": {
     "msg_type": "execute_request",
@@ -36,7 +42,7 @@ error_execute_request_msg = """
   },
   "parent_header": {},
   "content": {
-    "code": "import IPython.displas as d; d.HTML('I\'m a <b>fancy</b> <i>kind</i> of message'",
+    "code": "import IPython.displas as d; d.HTML('I'm a <b>fancy</b> <i>kind</i> of message'",
     "silent": false,
     "store_history": true,
     "user_expressions": {},
@@ -47,7 +53,9 @@ error_execute_request_msg = """
 }
 """
 
-fancy_execute_request_msg = """
+
+fancy_execute_request_msg =
+    """
 {
   "header": {
     "msg_type": "execute_request",
@@ -66,7 +74,9 @@ fancy_execute_request_msg = """
 }
 """
 
-stdout_execute_request_msg = """
+
+stdout_execute_request_msg =
+    """
 {
   "header": {
     "msg_type": "execute_request",
@@ -89,8 +99,8 @@ stdout_execute_request_msg = """
 """
 
 
-
-basic_execute_request_msg = """
+basic_execute_request_msg code =
+    """
 {
   "header": {
     "msg_id": "",
@@ -101,7 +111,7 @@ basic_execute_request_msg = """
   },
   "metadata": {},
   "content": {
-    "code": "2+2",
+    "code": """ ++ code ++ """,
     "silent": false,
     "store_history": true,
     "user_expressions": {},
@@ -115,10 +125,17 @@ basic_execute_request_msg = """
 }
 """
 
--- Still kind of bonkers that there's no String.replace
-sleep_request_msg = String.split "2+2" basic_execute_request_msg |> String.join "import time; time.sleep(10)"
 
-resource_info_request_msg = """
+
+-- Still kind of bonkers that there's no String.replace
+
+
+sleep_request_msg =
+    basic_execute_request_msg "import time; time.sleep(10)"
+
+
+resource_info_request_msg =
+    """
 {
   "header": {
     "msg_id": "",
@@ -135,7 +152,9 @@ resource_info_request_msg = """
 }
 """
 
-  --"channel": "control"
+
+
+--"channel": "control"
 --basic_execute_request_msg_ : Jmsg
 --basic_execute_request_msg_ =
 --  {
